@@ -1,3 +1,6 @@
+mod vm;
+use vm::*;
+
 fn main() {
-    println!("Hello, world!");
+    let _lc3 = Vm::new();
 }
