@@ -5,9 +5,18 @@ use vm::*;
 
 fn main() {
     disable_input_buffering();
-    let mut lc3 = Vm::new();
-    let mut running = true;
 
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        println!("Please use: cargo run -- path/file_name.obj");
+        return;
+    }
+
+    let mut lc3 = Vm::new();
+    lc3.read_image_file(&args[1])
+        .expect("Error while loading .obj file");
+
+    let mut running = true;
     while running {
         //fetch
         let pc_idx = lc3.read_register(Register::PC);
@@ -97,6 +106,13 @@ fn main() {
                     let src_reg = lc3.reg((instr >> 6) & 0x7);
                     let val = lc3.read_register(src_reg);
                     lc3.write_register(Register::PC, val);
+                }
+
+                Opcode::Lea => {
+                    let dst = lc3.reg((instr >> 9) & 0x7);
+                    let pc_offset = lc3.sign_ext(instr & 0x1FF, 9);
+                    let val = lc3.read_register(Register::PC).wrapping_add(pc_offset);
+                    lc3.write_register(dst, val);
                 }
 
                 Opcode::Trap => {

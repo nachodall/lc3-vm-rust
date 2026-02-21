@@ -1,5 +1,5 @@
-#![allow(dead_code)]
-use std::io::Read;
+use std::fs::File;
+use std::io::{BufReader, Read};
 
 pub const MEMORY_MAX: usize = 1 << 16;
 pub const PC_START: u16 = 0x3000;
@@ -151,13 +151,31 @@ impl Vm {
         }
     }
 
-    #[inline]
     pub fn reg(&self, bits: u16) -> Register {
         Register::from_u16(bits).expect("Invalid Register bits")
     }
 
-    #[inline]
     pub fn sign_ext(&self, x: u16, bit_count: usize) -> u16 {
         (((x as i16) << (16 - bit_count)) >> (16 - bit_count)) as u16
+    }
+
+    pub fn read_image_file(&mut self, path: &str) -> std::io::Result<()> {
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+
+        let mut buffer_bytes = [0u8; 2];
+        reader.read_exact(&mut buffer_bytes)?;
+        let origin_addr = u16::from_be_bytes(buffer_bytes); //switch from big-endian to little-endian
+        self.write_register(Register::PC, origin_addr);
+
+        //now we load the instructions in their respective addresses
+        let mut addr = origin_addr;
+        while reader.read_exact(&mut buffer_bytes).is_ok() {
+            let instr = u16::from_be_bytes(buffer_bytes);
+            self.write_memory(addr, instr);
+            addr = addr.wrapping_add(1);
+        }
+
+        Ok(())
     }
 }
