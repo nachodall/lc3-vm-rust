@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use std::io::Read;
 
 pub const MEMORY_MAX: usize = 1 << 16;
 const REG_COUNT: usize = Register::Count as usize;
@@ -17,6 +18,10 @@ pub enum Register {
     Cond,
     Count,
 }
+
+// Memory-Mapped I/O Registers
+const MR_KBSR: usize = 0xFE00; // Keyboard Status Register
+const MR_KBDR: usize = 0xFE02; // Keyboard Data Register
 
 #[repr(u16)]
 pub enum ConditionalFlag {
@@ -56,5 +61,23 @@ impl Vm {
             memory: [0; MEMORY_MAX],
             registers: [0; REG_COUNT],
         }
+    }
+
+    pub fn read_memory(&mut self, addr: u16) -> u16 {
+        if addr == MR_KBSR as u16 {
+            if crate::hardware::check_key() {
+                self.memory[MR_KBSR] = 1 << 15;
+                let mut buffer = [0; 1];
+                std::io::stdin().read_exact(&mut buffer).unwrap();
+                self.memory[MR_KBDR] = buffer[0] as u16;
+            } else {
+                self.memory[MR_KBSR] = 0;
+            }
+        }
+        self.memory[addr as usize]
+    }
+
+    pub fn write_memory(&mut self, addr: u16, val: u16) {
+        self.memory[addr as usize] = val;
     }
 }
