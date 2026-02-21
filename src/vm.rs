@@ -2,8 +2,10 @@
 use std::io::Read;
 
 pub const MEMORY_MAX: usize = 1 << 16;
+pub const PC_START: u16 = 0x3000;
 const REG_COUNT: usize = Register::Count as usize;
 
+#[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u16)]
 pub enum Register {
     R0 = 0,
@@ -17,6 +19,25 @@ pub enum Register {
     PC,
     Cond,
     Count,
+}
+
+impl Register {
+    pub fn from_u16(v: u16) -> Option<Register> {
+        match v {
+            0 => Some(Register::R0),
+            1 => Some(Register::R1),
+            2 => Some(Register::R2),
+            3 => Some(Register::R3),
+            4 => Some(Register::R4),
+            5 => Some(Register::R5),
+            6 => Some(Register::R6),
+            7 => Some(Register::R7),
+            8 => Some(Register::PC),
+            9 => Some(Register::Cond),
+            10 => Some(Register::Count),
+            _ => None,
+        }
+    }
 }
 
 // Memory-Mapped I/O Registers
@@ -50,6 +71,30 @@ pub enum Opcode {
     Trap,   /* execute trap */
 }
 
+impl Opcode {
+    pub fn from_u16(value: u16) -> Option<Opcode> {
+        match value {
+            0 => Some(Opcode::Br),
+            1 => Some(Opcode::Add),
+            2 => Some(Opcode::Ld),
+            3 => Some(Opcode::St),
+            4 => Some(Opcode::Jsr),
+            5 => Some(Opcode::And),
+            6 => Some(Opcode::Ldr),
+            7 => Some(Opcode::Str),
+            8 => Some(Opcode::Rti),
+            9 => Some(Opcode::Not),
+            10 => Some(Opcode::Ldi),
+            11 => Some(Opcode::Sti),
+            12 => Some(Opcode::Jmp),
+            13 => Some(Opcode::Res),
+            14 => Some(Opcode::Lea),
+            15 => Some(Opcode::Trap),
+            _ => None,
+        }
+    }
+}
+
 pub struct Vm {
     memory: [u16; MEMORY_MAX],
     registers: [u16; REG_COUNT],
@@ -57,9 +102,13 @@ pub struct Vm {
 
 impl Vm {
     pub fn new() -> Self {
+        let mut registers = [0; REG_COUNT];
+        registers[Register::PC as usize] = PC_START;
+        registers[Register::Cond as usize] = ConditionalFlag::Zro as u16;
+
         Self {
             memory: [0; MEMORY_MAX],
-            registers: [0; REG_COUNT],
+            registers,
         }
     }
 
@@ -77,7 +126,28 @@ impl Vm {
         self.memory[addr as usize]
     }
 
-    pub fn write_memory(&mut self, addr: u16, val: u16) {
-        self.memory[addr as usize] = val;
+    pub fn write_memory(&mut self, addr: u16, value: u16) {
+        self.memory[addr as usize] = value;
+    }
+
+    pub fn read_register(&self, reg: Register) -> u16 {
+        self.registers[reg as usize]
+    }
+
+    pub fn write_register(&mut self, reg: Register, value: u16) {
+        self.registers[reg as usize] = value;
+        if (reg as usize) < Register::PC as usize {
+            self.update_flags(value);
+        }
+    }
+
+    fn update_flags(&mut self, value: u16) {
+        if value == 0 {
+            self.registers[Register::Cond as usize] = ConditionalFlag::Zro as u16;
+        } else if (value >> 15) == 1 {
+            self.registers[Register::Cond as usize] = ConditionalFlag::Neg as u16;
+        } else {
+            self.registers[Register::Cond as usize] = ConditionalFlag::Pos as u16;
+        }
     }
 }
