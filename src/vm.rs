@@ -18,6 +18,10 @@ pub enum Register {
     Count,
 }
 
+// Memory-Mapped I/O Registers
+const MR_KBSR: u16 = 0xFE00; // Keyboard Status Register
+const MR_KBDR: u16 = 0xFE02; // Keyboard Data Register
+
 #[repr(u16)]
 pub enum ConditionalFlag {
     Pos = 1 << 0, // P (1)

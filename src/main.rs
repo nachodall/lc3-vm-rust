@@ -1,3 +1,4 @@
+mod hardware;
 mod vm;
 use vm::*;
 
