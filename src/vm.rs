@@ -51,6 +51,7 @@ pub enum ConditionalFlag {
     Neg = 1 << 2, // N (4)
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)] // Agregamos Debug acá
 #[repr(u16)]
 pub enum Opcode {
     Br = 0, /* branch */
@@ -100,8 +101,8 @@ pub struct Vm {
     registers: [u16; REG_COUNT],
 }
 
-impl Vm {
-    pub fn new() -> Self {
+impl Default for Vm {
+    fn default() -> Self {
         let mut registers = [0; REG_COUNT];
         registers[Register::PC as usize] = PC_START;
         registers[Register::Cond as usize] = ConditionalFlag::Zro as u16;
@@ -111,14 +112,22 @@ impl Vm {
             registers,
         }
     }
+}
 
+impl Vm {
+    pub fn new() -> Self {
+        Self::default()
+    }
     pub fn read_memory(&mut self, addr: u16) -> u16 {
         if addr == MR_KBSR as u16 {
             if crate::hardware::check_key() {
                 self.memory[MR_KBSR] = 1 << 15;
                 let mut buffer = [0; 1];
-                std::io::stdin().read_exact(&mut buffer).unwrap();
-                self.memory[MR_KBDR] = buffer[0] as u16;
+                if std::io::stdin().read_exact(&mut buffer).is_ok() {
+                    self.memory[MR_KBDR] = buffer[0] as u16;
+                } else {
+                    self.memory[MR_KBSR] = 0;
+                }
             } else {
                 self.memory[MR_KBSR] = 0;
             }
@@ -160,20 +169,27 @@ impl Vm {
     }
 
     pub fn read_image_file(&mut self, path: &str) -> std::io::Result<()> {
-        let file = File::open(path)?;
-        let mut reader = BufReader::new(file);
-
+        let mut file = File::open(path)?;
+        let mut reader = BufReader::new(&mut file);
         let mut buffer_bytes = [0u8; 2];
+
         reader.read_exact(&mut buffer_bytes)?;
-        let origin_addr = u16::from_be_bytes(buffer_bytes); //switch from big-endian to little-endian
+        let origin_addr = u16::from_be_bytes(buffer_bytes);
         self.write_register(Register::PC, origin_addr);
 
-        //now we load the instructions in their respective addresses
         let mut addr = origin_addr;
-        while reader.read_exact(&mut buffer_bytes).is_ok() {
-            let instr = u16::from_be_bytes(buffer_bytes);
-            self.write_memory(addr, instr);
-            addr = addr.wrapping_add(1);
+        loop {
+            match reader.read_exact(&mut buffer_bytes) {
+                Ok(_) => {
+                    let instruction = u16::from_be_bytes(buffer_bytes);
+                    self.write_memory(addr, instruction);
+                    addr = addr.wrapping_add(1);
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    break;
+                }
+                Err(e) => return Err(e),
+            }
         }
 
         Ok(())
