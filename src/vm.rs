@@ -150,4 +150,14 @@ impl Vm {
             self.registers[Register::Cond as usize] = ConditionalFlag::Pos as u16;
         }
     }
+
+    #[inline]
+    pub fn reg(&self, bits: u16) -> Register {
+        Register::from_u16(bits).expect("Invalid Register bits")
+    }
+
+    #[inline]
+    pub fn sign_ext(&self, x: u16, bit_count: usize) -> u16 {
+        (((x as i16) << (16 - bit_count)) >> (16 - bit_count)) as u16
+    }
 }
