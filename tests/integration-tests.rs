@@ -1,6 +1,5 @@
+use assert_cmd::cargo::cargo_bin_cmd;
 use lc3_vm_rust::vm::Vm;
-
-use assert_cmd::Command;
 use predicates::prelude::*;
 
 #[test]
@@ -18,8 +17,7 @@ fn test_hello_world_memory_load() {
 
 #[test]
 fn test_hello_world_terminal_output() {
-    let mut cmd =
-        Command::cargo_bin("lc3-vm-rust").expect("Binary not found. Run 'cargo build' first.");
+    let mut cmd = cargo_bin_cmd!("lc3-vm-rust");
 
     cmd.arg("assets/hello.obj")
         .assert()
