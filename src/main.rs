@@ -291,18 +291,5 @@ fn main() {
         }
     }
 
-    println!("Debug information");
-    println!("R1: {} ", lc3.read_register(Register::R1));
-    println!("PC: 0x{:04X} ", lc3.read_register(Register::PC));
-
-    let cond = lc3.read_register(Register::Cond);
-    let cond_name = match cond {
-        1 => "P",
-        2 => "Z",
-        4 => "N",
-        _ => "Unknown",
-    };
-    println!("Flag COND: {}", cond_name);
-
     restore_input_buffering();
 }

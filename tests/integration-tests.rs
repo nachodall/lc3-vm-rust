@@ -6,12 +6,12 @@ use predicates::prelude::*;
 fn test_hello_world_memory_load() {
     let mut lc3 = Vm::new();
     let result = lc3.read_image_file("assets/hello.obj");
-    assert!(result.is_ok(), "Fail at loading assets/hello.obj.");
+    assert!(result.is_ok(), "Failed to load assets/hello.obj.");
 
     let first_instr = lc3.read_memory(0x3000);
     assert_ne!(
         first_instr, 0,
-        "Memory at 0x3000 should have an instruction, but it's empty."
+        "Memory at 0x3000 should contain an instruction, but it is empty."
     );
 }
 
@@ -24,4 +24,30 @@ fn test_hello_world_terminal_output() {
         .success()
         .stdout(predicate::str::contains("Hello World!"))
         .stdout(predicate::str::contains("HALT"));
+}
+
+#[test]
+fn test_rogue_memory_load() {
+    let mut lc3 = Vm::new();
+    let result = lc3.read_image_file("assets/rogue.obj");
+    assert!(result.is_ok(), "Failed to load assets/rogue.obj.");
+
+    let first_instr = lc3.read_memory(0x3000);
+    assert_ne!(
+        first_instr, 0,
+        "Memory at 0x3000 for Rogue should contain an instruction, but it is empty."
+    );
+}
+
+#[test]
+fn test_2048_memory_load() {
+    let mut lc3 = Vm::new();
+    let result = lc3.read_image_file("assets/2048.obj");
+    assert!(result.is_ok(), "Failed to load assets/2048.obj.");
+
+    let first_instr = lc3.read_memory(0x3000);
+    assert_ne!(
+        first_instr, 0,
+        "Memory at 0x3000 for 2048 should contain an instruction, but it is empty."
+    );
 }
