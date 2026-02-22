@@ -50,12 +50,16 @@ fn main() {
                     if imm_flag == 1 {
                         let imm5 = lc3.sign_ext(instr & 0x1F, 5);
                         let val1 = lc3.read_register(src1);
-                        lc3.write_register(dst, val1.wrapping_add(imm5));
+                        let res = val1.wrapping_add(imm5);
+                        lc3.write_register(dst, res);
+                        lc3.update_flags(res);
                     } else {
                         let src2 = lc3.reg(instr & 0x7);
                         let val1 = lc3.read_register(src1);
                         let val2 = lc3.read_register(src2);
-                        lc3.write_register(dst, val1.wrapping_add(val2));
+                        let res = val1.wrapping_add(val2);
+                        lc3.write_register(dst, res);
+                        lc3.update_flags(res);
                     }
                 }
 
@@ -67,6 +71,7 @@ fn main() {
 
                     let val = lc3.read_memory(addr);
                     lc3.write_register(dst, val);
+                    lc3.update_flags(val);
                 }
 
                 Opcode::St => {
@@ -79,6 +84,22 @@ fn main() {
                     lc3.write_memory(addr, val);
                 }
 
+                Opcode::Jsr => {
+                    let current_pc = lc3.read_register(Register::PC);
+                    lc3.write_register(Register::R7, current_pc);
+
+                    let bit_11 = (instr >> 11) & 0x1;
+                    if bit_11 == 0 {
+                        let base_r = lc3.reg((instr >> 6) & 0x7);
+                        let val = lc3.read_register(base_r);
+                        lc3.write_register(Register::PC, val);
+                    } else {
+                        let pc_offset = lc3.sign_ext(instr & 0x7FF, 11);
+                        let val = current_pc.wrapping_add(pc_offset);
+                        lc3.write_register(Register::PC, val);
+                    }
+                }
+
                 Opcode::And => {
                     let dst = lc3.reg((instr >> 9) & 0x7);
                     let src1 = lc3.reg((instr >> 6) & 0x7);
@@ -87,12 +108,16 @@ fn main() {
                     if imm_flag == 1 {
                         let imm5 = lc3.sign_ext(instr & 0x1F, 5);
                         let val1 = lc3.read_register(src1);
-                        lc3.write_register(dst, val1 & imm5);
+                        let res = val1 & imm5;
+                        lc3.write_register(dst, res);
+                        lc3.update_flags(res);
                     } else {
                         let src2 = lc3.reg(instr & 0x7);
                         let val1 = lc3.read_register(src1);
                         let val2 = lc3.read_register(src2);
-                        lc3.write_register(dst, val1 & val2);
+                        let res = val1 & val2;
+                        lc3.write_register(dst, res);
+                        lc3.update_flags(res);
                     }
                 }
 
@@ -106,13 +131,57 @@ fn main() {
 
                     let val = lc3.read_memory(addr);
                     lc3.write_register(dst, val);
+                    lc3.update_flags(val);
+                }
+
+                Opcode::Str => {
+                    let src = lc3.reg((instr >> 9) & 0x7);
+                    let base_r = lc3.reg((instr >> 6) & 0x7);
+                    let offset6 = lc3.sign_ext(instr & 0x3F, 6);
+
+                    let base_val = lc3.read_register(base_r);
+                    let addr = base_val.wrapping_add(offset6);
+
+                    let val_to_store = lc3.read_register(src);
+                    lc3.write_memory(addr, val_to_store);
+                }
+
+                Opcode::Rti | Opcode::Res => {
+                    println!("Opcode {:?} is unused or reserved", opcode);
+                    running = false;
                 }
 
                 Opcode::Not => {
                     let dst = lc3.reg((instr >> 9) & 0x7);
                     let src = lc3.reg((instr >> 6) & 0x7);
-                    let val = lc3.read_register(src);
-                    lc3.write_register(dst, !val);
+                    let val = !lc3.read_register(src);
+                    lc3.write_register(dst, val);
+                    lc3.update_flags(val);
+                }
+
+                Opcode::Ldi => {
+                    let dst = lc3.reg((instr >> 9) & 0x7);
+                    let pc_offset = lc3.sign_ext(instr & 0x1FF, 9);
+                    let pc_val = lc3.read_register(Register::PC);
+
+                    let intermediate_addr = pc_val.wrapping_add(pc_offset);
+                    let final_addr = lc3.read_memory(intermediate_addr);
+
+                    let val = lc3.read_memory(final_addr);
+                    lc3.write_register(dst, val);
+                    lc3.update_flags(val);
+                }
+
+                Opcode::Sti => {
+                    let src = lc3.reg((instr >> 9) & 0x7);
+                    let pc_offset = lc3.sign_ext(instr & 0x1FF, 9);
+                    let pc_val = lc3.read_register(Register::PC);
+
+                    let intermediate_addr = pc_val.wrapping_add(pc_offset);
+                    let final_addr = lc3.read_memory(intermediate_addr);
+
+                    let val_to_store = lc3.read_register(src);
+                    lc3.write_memory(final_addr, val_to_store);
                 }
 
                 Opcode::Jmp => {
@@ -126,6 +195,7 @@ fn main() {
                     let pc_offset = lc3.sign_ext(instr & 0x1FF, 9);
                     let val = lc3.read_register(Register::PC).wrapping_add(pc_offset);
                     lc3.write_register(dst, val);
+                    lc3.update_flags(val);
                 }
 
                 Opcode::Trap => {
@@ -216,11 +286,6 @@ fn main() {
                             running = false;
                         }
                     }
-                }
-
-                _ => {
-                    println!("Opcode {:?} not yet implemented", opcode);
-                    running = false;
                 }
             }
         }
