@@ -145,12 +145,9 @@ impl Vm {
 
     pub fn write_register(&mut self, reg: Register, value: u16) {
         self.registers[reg as usize] = value;
-        if (reg as usize) < Register::PC as usize {
-            self.update_flags(value);
-        }
     }
 
-    fn update_flags(&mut self, value: u16) {
+    pub fn update_flags(&mut self, value: u16) {
         if value == 0 {
             self.registers[Register::Cond as usize] = ConditionalFlag::Zro as u16;
         } else if (value >> 15) == 1 {
