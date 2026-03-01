@@ -10,7 +10,9 @@ A full implementation of the LC-3 (Little Computer 3) architecture written in Ru
 
 ## Prerequisites
 
-* [Rust / Cargo](https://www.rust-lang.org/tools/install)
+To compile and run this VM, you need to have the Rust toolchain installed:
+* **Rust / Cargo**: 1.80.0 or later.
+
 
 ## Usage
 
